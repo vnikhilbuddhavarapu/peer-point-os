@@ -33,6 +33,17 @@ const generatedPaths = Object.fromEntries(
 const defaultContextArtifactsNamespace = "gatekeeper-context-collections";
 const accountIdPattern = /^[a-f\d]{32}$/i;
 
+export function deploymentConfigPath(args: string[]): string {
+  const indexes = args.flatMap((arg, index) => arg === "--config" ? [index] : []);
+  if (indexes.length > 1) throw new Error("Pass --config at most once.");
+  if (indexes.length === 0) return join(root, "deployment.jsonc");
+  const value = args[indexes[0] + 1];
+  if (!value || value.startsWith("--")) {
+    throw new Error("--config requires a path to a deployment JSONC file.");
+  }
+  return resolve(root, value);
+}
+
 const requiredPaths = [
   "accountId",
   "workers.router.name",
@@ -713,7 +724,7 @@ function reportAiGateway(config: DeploymentConfig): void {
 
 async function main(): Promise<void> {
   requireSubmodule();
-  const config = await readDeployment(join(root, "deployment.jsonc"));
+  const config = await readDeployment(deploymentConfigPath(process.argv.slice(2)));
   const generated = generateConfigs(config, {
     router: await readJsonc(join(root, packageDirs.router, "wrangler.jsonc")),
     workshop: await readJsonc(join(root, packageDirs.workshop, "wrangler.jsonc")),

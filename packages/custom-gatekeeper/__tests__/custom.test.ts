@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CustomAccount,
   CustomSessionImpl,
   describeCustomAccount,
   describeCustomVendor,
@@ -16,6 +17,15 @@ describe("custom-gatekeeper", () => {
       displayName: "Custom Gatekeeper",
       singleton: { tsType: "CustomSession" },
     });
+  });
+
+  it("rejects reconnect commits because it has no credentials", () => {
+    expect(() =>
+      CustomAccount.prototype.commitReconnect.call(
+        {} as CustomAccount,
+        "stage",
+      ),
+    ).toThrow("Custom Gatekeeper has no credentials to reconnect.");
   });
 
   it("authorizes the observation before returning deployment information", async () => {

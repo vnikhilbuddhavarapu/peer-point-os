@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "24.19.0"
+
+jobs:
+  compatibility:
+    name: Pinned source and distribution
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Check out distribution and pinned source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Verify exact source pin
+        run: test "$(git rev-parse HEAD:cloudflare-os)" = "$(git -C cloudflare-os rev-parse HEAD)"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Vite+, Node.js and distribution dependencies
+        uses: voidzero-dev/setup-vp@49c3e4e92c52e7f8392712a9267bbe71c5ab30e5 # v1.19.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: true
+          run-install: true
+
+      - name: Verify distribution lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Install pinned source dependencies
+        run: pnpm --dir cloudflare-os install --frozen-lockfile
+
+      - name: Lint and build pinned source
+        run: pnpm --dir cloudflare-os lint
+
+      - name: Test pinned source
+        run: pnpm --dir cloudflare-os test
+
+      - name: Lint and build distribution
+        run: pnpm lint
+
+      - name: Test deployment generation
+        run: pnpm check -- --config scripts/deployment.test.jsonc
