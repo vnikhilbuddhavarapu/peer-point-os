@@ -1,0 +1,23 @@
+README.md
+  s_c9cbf4fe1413de::t_bfb73b55c6cf4d 34
+deployment.jsonc
+  s_c9cbf4fe1413de::t_42e344d21ccb5d 47-49,92,94,101-102
+docs/runbooks.md
+  s_c9cbf4fe1413de::t_a60b5611e79623 7-17,47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "7cc4724a4c979455ba21afaa043ae207b6cf50dd",
+  "prompts": {},
+  "sessions": {
+    "s_c9cbf4fe1413de": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_c9cbf4fe1413de",
+        "model": "unknown"
+      },
+      "human_author": "Nikhil <vnikhilbuddhavarapu@outlook.com>"
+    }
+  }
+}
