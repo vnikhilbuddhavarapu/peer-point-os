@@ -1,0 +1,35 @@
+docs/observability.md
+  s_d2608fccc9884f::t_fbf21030396372 21-29,80-98,101,144-149,162,171-179,185-186
+README.md
+  s_d948e657bbc140::t_31b19fe1f3eb68 5,8,20,22,24-32,34,36,38,40,42-51,53,55,57,59,61-62,64,66,68,70-76,78-82,91,93-97,104,106,108,110,112-115
+docs/assets/architecture.svg
+  s_d948e657bbc140::t_6f06c88e956a33 1-3,6-7,10,14-15,18,20,22,25-29,32,45-47,50-146
+docs/customization.md
+  s_d948e657bbc140::t_fc3f0122c31d77 1,3,7,9-11,13,15,19,21,25-43,47,49-58,60,62,64,66,68,70,72,76,78,80,82,84,86-90,92,94,96,98-105,108,110,112,116,121,123-133,137,139,141,143,145-154,157,159,161,163-165,167,169,171,175,177
+docs/runbooks.md
+  s_d948e657bbc140::t_649eea08d2e6eb 1-213
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "20f6e3ddc2e68460b567b8a0382de456bfd94fcd",
+  "prompts": {},
+  "sessions": {
+    "s_d2608fccc9884f": {
+      "agent_id": {
+        "tool": "windsurf",
+        "id": "navy-scion",
+        "model": "unknown"
+      },
+      "human_author": "Nikhil <vnikhilbuddhavarapu@outlook.com>"
+    },
+    "s_d948e657bbc140": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_d948e657bbc140",
+        "model": "unknown"
+      },
+      "human_author": "Nikhil <vnikhilbuddhavarapu@outlook.com>"
+    }
+  }
+}
