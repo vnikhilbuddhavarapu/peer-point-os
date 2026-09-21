@@ -31,7 +31,7 @@
 | Public Workers     | Router only                                                                                   |
 | Preview URLs       | Disabled on all eight Workers                                                                 |
 
-Access issuer, Access AUD, admin emails, GitHub OAuth credentials, the real MCP Portal endpoint/server ID, branding, the attendee deployment procedure, and the privacy decision are still [required human inputs](docs/runbooks.md#required-human-inputs). Secrets never belong in tracked configuration.
+The rotated GitHub OAuth secret, Cloudflare API Portal server ID, branding, attendee deployment procedure, and privacy decision are still [required human inputs](docs/runbooks.md#required-human-inputs). Secrets never belong in tracked configuration.
 
 ## Architecture
 

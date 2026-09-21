@@ -4,22 +4,17 @@ These runbooks are release controls, not optional setup notes. Stop when a requi
 
 ## Required human inputs
 
-The repository already fixes account `b157b3849ca30a481cae4bc5d9bc05ff`, hostname `os.cf.prompt2prod.dev`, AI Gateway `peer-point-os`, eight Worker names, seven models, and the quick model. The following values or decisions are intentionally absent:
+The repository fixes account `b157b3849ca30a481cae4bc5d9bc05ff`, hostname `os.cf.prompt2prod.dev`, Access issuer/AUD/admin, AI Gateway `peer-point-os`, eight Worker names, seven models, quick model, GitHub client ID, and MCP Portal endpoint. The following values or decisions remain unresolved:
 
-| Input | Status | Owner must provide |
-| --- | --- | --- |
-| Access issuer | **Required** | Access team origin, `https://<team>.cloudflareaccess.com` |
-| Access audience | **Required** | AUD tag for the self-hosted `os.cf.prompt2prod.dev` application |
-| Admin emails | **Required** | Narrow list of Access-verified event administrator emails |
-| GitHub client ID | **Required** | Non-secret client ID for the event's GitHub OAuth App |
-| GitHub client secret | **Required secret** | Install interactively as `CLIENT_SECRET`; never record it here |
-| MCP Portal endpoint | **Required** | HTTPS MCP endpoint of a real Cloudflare MCP Server Portal, not `https://mcp.cloudflare.com/mcp` |
-| Cloudflare API upstream server ID | **Required** | Server ID assigned inside the Portal; use it in validation and exclusions where appropriate |
-| Branding | **Required** | Site name, logo, colors, announcements, and attendee instructions |
-| Attendee deployment procedure | **Required decision and proof** | Tested attendee-owned GitHub Actions or Cloudflare repository integration; no organizer token |
-| AI Gateway privacy decision | **Required approval** | Disclosure, retention, access, deletion/export, and attendee request handling for logged email |
+| Input                             | Status                           | Owner must provide                                                                                            |
+| --------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| GitHub client secret              | **Required rotation and secret** | Revoke the exposed value, then install its replacement interactively as `CLIENT_SECRET`; never record it here |
+| Cloudflare API upstream server ID | **Required**                     | Server ID assigned inside the Portal; use it in validation and exclusions where appropriate                   |
+| Branding                          | **Required**                     | Site name, logo, colors, announcements, and attendee instructions                                             |
+| Attendee deployment procedure     | **Required decision and proof**  | Tested attendee-owned GitHub Actions or Cloudflare repository integration; no organizer token                 |
+| AI Gateway privacy decision       | **Required approval**            | Disclosure, retention, access, deletion/export, and attendee request handling for logged email                |
 
-Replace only the non-secret placeholders in `deployment.jsonc`. Keep secret values in provider secret stores. `pnpm check` must fail rather than be bypassed while required configuration remains placeholder text.
+All required non-secret deployment values are now present in `deployment.jsonc`. Keep secret values in provider secret stores; never add them to tracked configuration.
 
 ## Access and DNS
 
@@ -49,6 +44,7 @@ If the issuer, AUD, policy, or admin emails are unknown, stop. Do not substitute
    ```
 
    Do not pass the value as an argument, echo it, save it in shell history, or commit it. If Wrangler identifies a different account or Worker, cancel.
+
 6. Connect a test attendee, verify the callback returns through Router, and select only that attendee's repository.
 7. Exercise a read, then stage a push or issue mutation. The read may execute as an observation; the mutation must remain pending until the attendee explicitly approves it. Do not enable mutation auto-approval for the event.
 8. Revoke the OAuth grant and confirm reconnect is required. Rotate the client secret by installing the replacement interactively, validating a new connection, then revoking the old value at GitHub.

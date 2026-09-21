@@ -44,9 +44,9 @@
   // "admins" gates /admin in every sign-in method.
   // Reference: docs/customization.md#sign-in-methods
   "access": {
-    "issuer": "https://<TEAM_NAME>.cloudflareaccess.com",
-    "audience": "<ACCESS_AUDIENCE>",
-    "admins": ["<ADMIN_EMAIL>"],
+    "issuer": "https://prompt2prod.cloudflareaccess.com",
+    "audience": "8859ac7f89ae7853cd95e00944b08c0f7804af82b8f60ec4795e92fff7be48b9",
+    "admins": ["nbuddhavarapu@cloudflare.com"],
   },
 
   // Model catalog served through Cloudflare AI Gateway. Enabled by default: the Workshop reaches
@@ -89,17 +89,17 @@
     // }
   },
 
-  "github": { "clientId": "<GITHUB_CLIENT_ID>" },
+  "github": { "clientId": "Ov23liOiSfDSGzUDobGX" },
   "mcpPortal": {
-    "portalUrl": "<MCP_PORTAL_URL>",
+    "portalUrl": "https://ppug-mtl-mcp.cf.prompt2prod.dev/mcp",
     "hiddenServerIds": [],
   },
 
   // Displayed to agents when the example custom integration is enabled in /admin.
   // Reference: docs/customization.md#custom-gatekeepers
   "customGatekeeper": {
-    "name": "<ORGANIZATION_DISPLAY_NAME>",
-    "message": "<ORGANIZATION_GUIDANCE>",
+    "name": "Custom Gatekeeper",
+    "message": "This connector is not used for Peer Point OS.",
   },
 
   // Explicit backend issue reports go to a private Worker that emits structured console errors.
