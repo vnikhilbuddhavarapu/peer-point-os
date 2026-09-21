@@ -18,15 +18,15 @@ flowchart LR
 
 ## Choose the signal
 
-| Signal | Best for | Produced by | Starter default |
-| --- | --- | --- | --- |
-| Structured application logs | Lifecycle, decisions, handled degradation, debugging | Producer Worker `console.*` calls | Enabled |
-| Uncaught exceptions | Crashes not handled by application code | Workers runtime | Enabled |
-| Explicit issue reports | Known failure sites that deserve cross-service triage | Upstream `reportIssue()` calls through RPC | Enabled for the Workshop backend |
-| Invocation logs | One runtime record per invocation | Workers runtime | Disabled to control volume |
-| Automatic traces | Timing and dependency paths across bindings/storage | Workers runtime | Disabled until sampling is chosen |
-| Browser reports | Trusted first-party UI exceptions | Same-origin browser endpoint | Disabled |
-| Source maps | Mapping generated stack frames to source | Wrangler/build pipeline | Destination-specific |
+| Signal                      | Best for                                              | Produced by                                | Starter default                   |
+| --------------------------- | ----------------------------------------------------- | ------------------------------------------ | --------------------------------- |
+| Structured application logs | Lifecycle, decisions, handled degradation, debugging  | Producer Worker `console.*` calls          | Enabled                           |
+| Uncaught exceptions         | Crashes not handled by application code               | Workers runtime                            | Enabled                           |
+| Explicit issue reports      | Known failure sites that deserve cross-service triage | Upstream `reportIssue()` calls through RPC | Enabled for the Workshop backend  |
+| Invocation logs             | One runtime record per invocation                     | Workers runtime                            | Disabled to control volume        |
+| Automatic traces            | Timing and dependency paths across bindings/storage   | Workers runtime                            | Disabled until sampling is chosen |
+| Browser reports             | Trusted first-party UI exceptions                     | Same-origin browser endpoint               | Disabled                          |
+| Source maps                 | Mapping generated stack frames to source              | Wrangler/build pipeline                    | Destination-specific              |
 
 Error reporting does not replace logs or traces. The default Reporter sees only explicit `reportIssue()` calls. It cannot catch an exception that terminates a Worker before a capture site, and it does not turn every `console.error()` into an issue.
 
@@ -77,9 +77,28 @@ Use consistent event names and bounded scalar context. Log at `error` when actio
 
 The Error Reporter intentionally flattens the normalized event and trusted producer props into one object. This makes high-value fields directly queryable and preserves the upstream event's occurrence ID, timestamp, exception, truncation marker, HTTP facts, correlation IDs, and attributes.
 
+## AI Gateway attribution
+
+Peer Point sends every inference through the same-account `peer-point-os` AI Gateway over the Workshop's pre-authenticated `WORKERS_AI` binding. It does not use an AI Gateway API token. The existing `cf-aig-metadata` request path carries only these non-reserved, flat scalar keys, with no more than five values:
+
+| Key           | Source                                                               |
+| ------------- | -------------------------------------------------------------------- |
+| `user_email`  | Non-empty email from the server-verified Cloudflare Access JWT       |
+| `application` | Fixed deployment label, `peer-point-os`                              |
+| `source`      | Trusted inference path such as chat, title generation, or compaction |
+| `gadget_id`   | Trusted Gadget context when present                                  |
+| `chat_id`     | Trusted chat context when present                                    |
+
+The verified human owner's email follows interactive chat, quick tasks, title generation, compaction, model bindings, spawned agents, automated Gadget calls, retries, and fallback paths. Browser values, agent IDs, and Gadget IDs cannot supply or override `user_email`, and the raw Access JWT is never metadata or a log field. In Access mode an AI Gateway request fails closed if the verified email is absent.
+
+[AI Gateway custom metadata](https://developers.cloudflare.com/ai-gateway/observability/custom-metadata/) appears in gateway logs and is searchable. A validation request must therefore confirm that `user_email` matches the signed-in attendee, all present keys are within this five-key policy, values are scalar, and no JWT, cookie, token, prompt, or arbitrary user payload appears in metadata.
+
+> [!WARNING]
+> `user_email` is personal data retained in AI Gateway logs. The event owner must approve the disclosure text, retention period, log access roles, deletion/export behavior, and attendee request process before staging or production logs are accepted. Until that [required human decision](runbooks.md#privacy-and-retention-disclosure) is recorded, the release gate is closed.
+
 ## Sampling and traces
 
-The deployment controls apply consistently to the Workshop, Context, Scheduler, custom Gatekeeper, and Error Reporter:
+The deployment controls apply consistently to all eight Workers: Router, Workshop, Context, Scheduler, GitHub, MCP Portal, Custom, and Error Reporter:
 
 ```jsonc
 "observability": {
@@ -122,12 +141,12 @@ The backend treats browser input as untrusted diagnostic data. Gatekeeper/config
 
 Workers Observability exports on its own. Reach for the Error Reporter only when exception events need handling that a telemetry pipeline does not give them.
 
-| Need | Path |
-| --- | --- |
-| Logs and traces in an external observability system | [OpenTelemetry export](https://developers.cloudflare.com/workers/observability/exporting-opentelemetry-data/) from the Cloudflare dashboard |
-| An existing log pipeline | [Workers Logpush](https://developers.cloudflare.com/workers/observability/logs/logpush/) |
-| Processing events in code before they leave the account | A [Tail Worker](https://developers.cloudflare.com/workers/observability/logs/tail-workers/) |
-| Exception grouping, release tracking, and alerting | [Replace the transport](../packages/error-reporter/README.md#replace-the-destination) inside `packages/error-reporter` |
+| Need                                                    | Path                                                                                                                                        |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Logs and traces in an external observability system     | [OpenTelemetry export](https://developers.cloudflare.com/workers/observability/exporting-opentelemetry-data/) from the Cloudflare dashboard |
+| An existing log pipeline                                | [Workers Logpush](https://developers.cloudflare.com/workers/observability/logs/logpush/)                                                    |
+| Processing events in code before they leave the account | A [Tail Worker](https://developers.cloudflare.com/workers/observability/logs/tail-workers/)                                                 |
+| Exception grouping, release tracking, and alerting      | [Replace the transport](../packages/error-reporter/README.md#replace-the-destination) inside `packages/error-reporter`                      |
 
 The first three need no code in this repository, and Sentry, Honeycomb, and Grafana all accept OTLP. Replacing the Reporter transport is worth it when exception events need destination-specific grouping, release handling, or alerting.
 
@@ -140,6 +159,7 @@ Exception messages and stacks may contain sensitive data even when nobody intend
 - Never put secrets, prompts, tokens, cookies, authorization headers, request/response bodies, or raw user documents in thrown errors or report attributes.
 - Keep Reporter Workers private and reachable only by service binding.
 - Use the minimum retention and destination access needed for incident response.
+- Treat AI Gateway `user_email` as personal data: restrict access and apply the approved disclosure, retention, deletion, and export policy.
 - Treat browser metadata, failure sites, and correlation values as diagnostics, never identity or authorization.
 - Review external export regions, subprocessors, deletion behavior, and access controls before enabling a destination.
 - Prefer identifiers over payloads. Look up protected business data in its system of record after authorization.
@@ -148,20 +168,22 @@ The upstream contract bounds strings and scalar attribute counts and refuses to 
 
 ## Troubleshooting
 
-| Symptom | Check |
-| --- | --- |
-| No Error Reporter Worker | `errorReporting.enabled`, Worker name, and deploy output |
-| Reporter exists but has no events | Confirm the failure crossed an explicit upstream `reportIssue()` capture site; inspect producer logs for uncaught or differently handled failures |
-| `error_report.dispatch.failed` in producer debug logs | Reporter service name/entrypoint, deployment order, and Reporter Worker availability |
-| Reporter invocation succeeds but query is empty | Observability enablement, sampling, time range, selected Worker, and external export settings |
-| Wrong environment/release | Service-binding props in the generated Workshop config; redeploy all affected Workers together |
-| Stack does not map to source | Matching source map/release, map upload, generated filename, and whether the stack came from runtime or explicit reporting |
-| Browser endpoint returns no report | This is expected by default; both the reporter and rate-limiter bindings are required before it dispatches |
+| Symptom                                               | Check                                                                                                                                             |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| No Error Reporter Worker                              | `errorReporting.enabled`, Worker name, and deploy output                                                                                          |
+| Reporter exists but has no events                     | Confirm the failure crossed an explicit upstream `reportIssue()` capture site; inspect producer logs for uncaught or differently handled failures |
+| `error_report.dispatch.failed` in producer debug logs | Reporter service name/entrypoint, deployment order, and Reporter Worker availability                                                              |
+| Reporter invocation succeeds but query is empty       | Observability enablement, sampling, time range, selected Worker, and external export settings                                                     |
+| Wrong environment/release                             | Service-binding props in the generated Workshop config; redeploy all affected Workers together                                                    |
+| Stack does not map to source                          | Matching source map/release, map upload, generated filename, and whether the stack came from runtime or explicit reporting                        |
+| Browser endpoint returns no report                    | This is expected by default; both the reporter and rate-limiter bindings are required before it dispatches                                        |
 
 ## Production checklist
 
 - Give every deployment a stable environment label and every releasable build a release identifier.
 - Verify one synthetic, non-sensitive explicit report after deployment.
+- Verify an AI request records the signed-in attendee's `user_email` and only the five allowed metadata keys.
+- Confirm the approved AI Gateway email disclosure and retention decision is published.
 - Confirm the Reporter has no public route.
 - Confirm logs/traces are retained or exported where responders actually look.
 - Add an actionable alert outside the Worker when the destination supports it.

@@ -2,10 +2,10 @@
   <img src="docs/assets/cloudflareOS.svg" alt="Cloudflare OS" width="480">
 </p>
 
-<h1 align="center">Customized for your Company</h1>
+<h1 align="center">Peer Point OS</h1>
 
 <p align="center">
-  Deploy a pinned Cloudflare OS release with branding, sign-in, integrations, routes, and upgrades under your control.
+  A pinned Cloudflare OS distribution for a multi-city beginner hackathon, with Access identity, attendee-owned connections, and a reviewed deployment boundary.
 </p>
 
 <p align="center">
@@ -17,52 +17,69 @@
 </p>
 
 > [!IMPORTANT]
-> Cloudflare OS is early-access software. Pin upstream releases, review changes, and verify the trust boundary before every production upgrade.
+> Cloudflare OS is early-access software. Peer Point is not release-ready until the [fresh-account, two-attendee pilot](docs/runbooks.md#fresh-account-two-attendee-pilot) passes. Do not claim browser-only arbitrary-repository deployment before that gate.
 
-## Four steps
+## Current distribution
 
-1. Install the dependencies and run `pnpm exec wrangler login`.
-2. Fill in `deployment.jsonc`: account ID, Worker names, hostname, Access audience, admin emails.
-3. Run `pnpm check`, then `pnpm deploy`.
-4. Open `/admin` and set the site name, logo, and accent color; branding needs no redeploy.
+| Control            | Configured value                                                                              |
+| ------------------ | --------------------------------------------------------------------------------------------- |
+| Cloudflare account | `b157b3849ca30a481cae4bc5d9bc05ff`                                                            |
+| Public hostname    | `os.cf.prompt2prod.dev`                                                                       |
+| AI Gateway         | `peer-point-os`, in the same account                                                          |
+| Identity           | Cloudflare Access only, using the Cloudflare identity provider (Cloudflare Dashboard account) |
+| AI provider        | Workers AI only                                                                               |
+| Public Workers     | Router only                                                                                   |
+| Preview URLs       | Disabled on all eight Workers                                                                 |
 
-[Deploy](#deploy) and [Customization](#customization) expand each step. Everything else on this page is optional reading.
+Access issuer, Access AUD, admin emails, GitHub OAuth credentials, the real MCP Portal endpoint/server ID, branding, the attendee deployment procedure, and the privacy decision are still [required human inputs](docs/runbooks.md#required-human-inputs). Secrets never belong in tracked configuration.
 
-## Overview
+## Architecture
 
-This repository adds deployment controls around a pinned [Cloudflare OS](https://github.com/cloudflare/cloudflare-os) release without modifying the upstream source.
+<img src="docs/assets/architecture.svg" alt="Peer Point OS architecture: Cloudflare Access protects the Router, the only public Worker. The Router reaches the private Workshop, Context, Scheduler, GitHub, MCP Portal, Custom, and Error Reporter Workers over service bindings. GitHub and the Cloudflare MCP Portal are connected capabilities, not identity providers. The Workshop reaches the same-account peer-point-os AI Gateway through a Workers AI binding without an AI Gateway API token.">
 
-| Control | What you own |
-| --- | --- |
-| Branding | Site name, logo, and accent color, changed in [`/admin`](docs/customization.md#branding) without a deploy |
-| Identity | The sign-in method and administrator allowlist; this starter deploys [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/) mode |
-| Routing | A production [Custom Domain](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/) or a `workers.dev` evaluation route |
-| Data | Existing KV/R2 resources or [automatic provisioning](https://developers.cloudflare.com/workers/wrangler/configuration/#automatic-provisioning) |
-| Integrations | Wrapper-owned Gatekeepers and service bindings without patching upstream |
-| AI | A [Workers AI](https://developers.cloudflare.com/workers-ai/) model catalog through [AI Gateway](https://developers.cloudflare.com/ai-gateway/) out of the box, with no API token; which providers and which gateway |
-| Operations | [Structured logs, traces, explicit error reports](docs/observability.md), validation, deployment order, and upgrades |
+The distribution is eight Workers:
 
-### Architecture
+| Worker         | Name                       | Role                                                                |
+| -------------- | -------------------------- | ------------------------------------------------------------------- |
+| Router         | `peer-point-os`            | Only public route; serves the frontend and proxies private bindings |
+| Workshop       | `peer-point-os-backend`    | Kernel, user Durable Objects, model policy, and RPC                 |
+| Context        | `peer-point-os-context`    | Ambient Context Gatekeeper                                          |
+| Scheduler      | `peer-point-os-scheduler`  | Ambient scheduled-work Gatekeeper                                   |
+| GitHub         | `peer-point-os-github`     | Per-attendee GitHub connected capability                            |
+| MCP Portal     | `peer-point-os-mcp-portal` | Per-attendee OAuth into a real Cloudflare MCP Server Portal         |
+| Custom         | `peer-point-os-custom`     | Example organization capability                                     |
+| Error Reporter | `peer-point-os-errors`     | Private explicit-issue destination                                  |
 
-<img src="docs/assets/architecture.svg" alt="Cloudflare OS deployment architecture: users reach one public route, owned by the router Worker, which serves the frontend and proxies /api to the Workshop backend and /gatekeeper/&lt;name&gt; to the matching Gatekeeper. Behind it is the pinned Cloudflare OS release, holding the Workshop kernel, Gadgets, Blueprints, and the default Gatekeepers. Service bindings connect it to the Workers and resources this repository owns: AI Gateway with no API token, custom Gatekeepers, the Error Reporter, and KV and R2 storage.">
+Only Router has a route. `workers.dev` is disabled on the seven private Workers and `preview_urls` is false on all eight. Deployment builds the GitHub and MCP configurators, deploys dependencies before Workshop, and deploys Router last.
 
-The deployment is six Workers. A **router** owns the public route and serves the frontend, proxying `/api` to the Workshop backend and `/gatekeeper/<name>` to whichever Gatekeeper the binding name matches; the Workshop, the Context, Scheduler and custom Gatekeepers, and the Error Reporter sit behind it with no route of their own, reachable only over service bindings.
+## Identity and capabilities
 
-The deploy command derives temporary Wrangler files from upstream base configs, builds the frontend in Cloudflare Access mode, deploys the private Error Reporter, the Gatekeepers and the Workshop before the router that binds them, and removes generated files even on failure. Secrets never enter tracked configuration.
+[Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/) is the only Peer Point identity boundary. Configure its self-hosted application for `os.cf.prompt2prod.dev` with the [Cloudflare identity provider](https://developers.cloudflare.com/cloudflare-one/integrations/identity-providers/cloudflare/). The backend verifies the Access JWT and requires its non-empty verified email claim. It never accepts browser-supplied email as identity and never forwards or logs the raw JWT.
 
-### If you only want branding
+GitHub and Cloudflare authorization are connected capabilities, not sign-in methods:
 
-A hosted flow deploys the same upstream release to your Cloudflare account without this repository. It builds nothing locally, configures sign-in and your admin emails for you, and leaves the whole `/admin` surface intact: site name, logo, accent color, announcements, agent instructions, featured blueprints, and which connectors your users can reach. Built-in Gatekeepers such as GitHub and Google are still yours to connect with your own OAuth credentials.
+- GitHub uses an OAuth App with `repo read:user user:email` and callback `https://os.cf.prompt2prod.dev/gatekeeper/github/oauth`. Repository pushes and other mutations remain approval-gated.
+- Cloudflare access uses a real [MCP Server Portal](https://developers.cloudflare.com/cloudflare-one/access-controls/ai-controls/mcp-portals/), with `https://mcp.cloudflare.com/mcp` configured as its upstream. Each attendee completes OAuth for their own Cloudflare account. Portal administration tools cannot be granted and MCP mutations remain approval-gated.
 
-<a href="https://os.cloudflare.app/deploy"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare"></a>
+No organizer-wide GitHub, Cloudflare, or deployment token may be shared with attendees. Attendee project changes must stay in attendee-owned repositories and deploy to attendee-owned Cloudflare accounts.
 
-Anything past that needs your own code or settings, which is what this repository is for: custom Gatekeepers, customized error reporting, your own Worker names, reusing storage you already have, choosing how much logging to keep, and a pinned version you upgrade when you decide. Hosted deployments also run on a `workers.dev` address, so deploy from here if you want the app on your own domain, or the email Gatekeeper, which needs a zone. Come back when branding stops being enough.
+## AI policy
 
-## Deploy
+The Workshop reaches the same-account `peer-point-os` AI Gateway over its pre-authenticated `WORKERS_AI` binding. This path requires **no AI Gateway API token**. The provider is exactly `cloudflare`, and the server-enforced catalog is:
 
-### 1. Prepare the workspace
+1. `@cf/zai-org/glm-5.3`
+2. `@cf/zai-org/glm-5.3-flash` — quick model
+3. `@cf/zai-org/glm-5.2`
+4. `@cf/moonshotai/kimi-k2.6`
+5. `@cf/moonshotai/kimi-k2.7-code`
+6. `@cf/deepseek-ai/deepseek-v4-flash-0731`
+7. `@cf/deepseek-ai/deepseek-v4-pro-0813`
 
-Install [Node.js 24.19 or newer](https://nodejs.org/) (the deploy scripts are TypeScript run directly by `node`), [pnpm 11.17](https://pnpm.io/installation), and authenticate [Wrangler](https://developers.cloudflare.com/workers/wrangler/commands/#login):
+Every AI Gateway request carries the verified Access email as `user_email` through the existing `cf-aig-metadata` path. Metadata is limited to five flat scalar keys: `user_email`, `application`, `source`, `gadget_id`, and `chat_id`. See [Observability](docs/observability.md#ai-gateway-attribution) for privacy implications.
+
+## Prepare and validate
+
+Install the exact workspace toolchain, authenticate Wrangler to the configured account, and initialize both dependency trees:
 
 ```sh
 git submodule update --init
@@ -71,64 +88,28 @@ pnpm --dir cloudflare-os install
 pnpm exec wrangler login
 ```
 
-Your account needs [Workers](https://developers.cloudflare.com/workers/), [KV](https://developers.cloudflare.com/kv/), [R2](https://developers.cloudflare.com/r2/), [Browser Rendering](https://developers.cloudflare.com/browser-rendering/), and [Dynamic Worker Loaders](https://developers.cloudflare.com/workers/runtime-apis/bindings/worker-loader/). It also needs [Workers AI](https://developers.cloudflare.com/workers-ai/) and [AI Gateway](https://developers.cloudflare.com/ai-gateway/), which the default model catalog runs on; only turning that catalog off makes them dispensable. [Artifacts](https://developers.cloudflare.com/artifacts/) is optional.
+Before deployment:
 
-### 2. Configure sign-in
-
-Cloudflare OS supports several sign-in methods. This starter deploys [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/) mode, which verifies identity before a request reaches the Worker. See [Sign-in methods](docs/customization.md#sign-in-methods) for the alternatives and what switching involves.
-
-1. Choose a public hostname in an [active Cloudflare zone](https://developers.cloudflare.com/dns/zone-setups/), such as `os.example.com`.
-2. Create a [self-hosted Access application](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/) for that hostname.
-3. Copy its [application audience tag](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/#get-your-aud-tag).
-4. Open [`deployment.jsonc`](deployment.jsonc) and replace the active placeholders. Every control is annotated in place.
-
-The hostname belongs to the router, the only Worker here with a public route. Wrangler creates its DNS and TLS at deploy time. For an evaluation without a zone, switch the annotated route to `{ "workersDev": true }` and set `publicBaseUrl` to the resulting origin.
-
-### 3. Validate and deploy
+1. Resolve every item in [Required human inputs](docs/runbooks.md#required-human-inputs).
+2. Create the Access application and DNS policy described in the [Access and DNS runbook](docs/runbooks.md#access-and-dns).
+3. Register the GitHub OAuth App and install `CLIENT_SECRET` interactively with Wrangler; do not paste it into a file or command argument.
+4. Provision and validate the real MCP Server Portal. The direct Cloudflare API MCP endpoint is an upstream, not the Portal URL.
+5. Run:
 
 ```sh
 pnpm check
 pnpm deploy
 ```
 
-With resource values left as `null`, Wrangler creates the three KV namespaces and R2 bucket automatically and reconnects them on later deploys. Set explicit IDs or a bucket name when the deployment must reuse existing resources.
+`pnpm check` validates the eight-Worker topology, exactly seven models, private routes, required secret declaration, bindings, configurator builds, and generated Wrangler configuration. Follow the [deployment validation and release gate](docs/runbooks.md#deployment-validation); a successful command alone is not release acceptance.
 
-A Workers AI model catalog is enabled by default and needs no API token: the Workshop reaches AI Gateway over its `WORKERS_AI` binding, which is pre-authenticated inside your account. See [AI models](docs/customization.md#ai-models) to add providers, change the gateway, or turn the catalog off.
+## Admin customization
 
-Git-backed Context collections are disabled by default. Accounts with Artifacts access can enable them in `context.artifacts`; see [Context Artifacts](docs/customization.md#context-artifacts).
+Use `/admin` for site name, logo, accent color, announcements, agent instructions, and connector availability. Keep identity, administrators, routes, models, and credentials deployment-controlled. The Admin UI is also the future runtime home for supported skills; implementing custom skills is out of scope for this phase. See [Customization](docs/customization.md).
 
-Backend error reporting is enabled without a vendor account. Explicit upstream issue events become structured logs in the private Error Reporter Worker; see [Observability and error reporting](docs/observability.md).
+## Operations
 
-### 4. Verify the deployment
-
-- Open the router's hostname and confirm Access signs in with the expected identity, and that it is the only public route into the deployment.
-- Open `/admin`, confirm the email is an administrator, and set Context, Scheduler and Custom Gatekeepers to disabled, optional, or enabled.
-- If Context Artifacts is enabled, create a Git-backed collection and confirm its repository can be populated and refreshed.
-- Enable the Custom Gatekeeper, ask for deployment information, and confirm its read appears as an observation.
-- Open the Error Reporter Worker's [Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/) and verify its structured `error_report` query surface.
-- Ask an agent to schedule something a few minutes out, and confirm it runs — that exercises the Scheduler Gatekeeper end to end.
-- Review logs for the router, Workshop, Context, Scheduler, custom Gatekeeper, and Error Reporter Workers.
-
-## Customization
-
-| Customize | Best place | Deploy required |
-| --- | --- | --- |
-| Site name, logo, color, announcements, instructions, connectors | `/admin` | No |
-| Sign-in, routes, AI, storage, observability, Worker identities | [`deployment.jsonc`](deployment.jsonc) | Yes |
-| Logs, traces, error destinations, browser reporting | [Observability guide](docs/observability.md) | Sometimes |
-| Organization APIs and capabilities | [`packages/custom-gatekeeper`](packages/custom-gatekeeper/README.md) | Yes |
-| Product behavior unavailable through Worker boundaries | Pinned upstream fork/commit | Yes |
-
-The complete control reference and recipes live in [Customization](docs/customization.md). The upstream [`write-gatekeeper` skill](https://github.com/cloudflare/cloudflare-os/blob/main/.agents/skills/write-gatekeeper/SKILL.md) covers richer integrations.
-
-## Operations and upgrades
-
-- Stream production events with [`wrangler tail`](https://developers.cloudflare.com/workers/observability/logs/real-time-logs/).
-- Triage explicit failures and choose export destinations with the [observability guide](docs/observability.md).
-- Roll a Worker back from its dashboard deployment history or with [`wrangler rollback`](https://developers.cloudflare.com/workers/versions-and-deployments/rollbacks/).
-- Follow the [upgrade checklist](docs/customization.md#upgrade) before changing the pinned submodule.
-- Review the upstream Cloudflare OS documentation and release history before adopting behavior changes.
-
-### Moving here from the hosted deploy (os.cloudflare.app/deploy)
-
-Ejecting an instance created by the hosted flow means redeploying over Workers that already hold your data. Worker names, storage IDs, the public URL, and AI Gateway all have to be carried across by hand, and each one fails quietly if it is not: the deploy succeeds against empty storage. [Migrating from the hosted deploy](docs/migrate-from-hosted.md) is the checklist.
+- Follow the focused [runbooks](docs/runbooks.md) for Access/DNS, OAuth and secrets, MCP Portal, privacy, deployment, rollback, upgrades, staging, pilot, and release.
+- Use [Workers Logs and traces](docs/observability.md) for runtime telemetry and AI Gateway logs for attendee attribution.
+- Roll back compatible Worker versions with [`wrangler rollback`](https://developers.cloudflare.com/workers/versions-and-deployments/rollbacks/) or the documented dashboard deployment history.
+- Keep the `cloudflare-os` gitlink and deployment toolchain on exact reviewed versions; never advance a floating branch at release time.
