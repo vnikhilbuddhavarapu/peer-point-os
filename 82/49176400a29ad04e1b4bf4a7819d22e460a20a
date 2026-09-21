@@ -1,0 +1,19 @@
+cloudflare-os
+  s_9211fa515925cf::t_1b0dd71fa5a03d 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8249176400a29ad04e1b4bf4a7819d22e460a20a",
+  "prompts": {},
+  "sessions": {
+    "s_9211fa515925cf": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_9211fa515925cf",
+        "model": "unknown"
+      },
+      "human_author": "Nikhil <vnikhilbuddhavarapu@outlook.com>"
+    }
+  }
+}
