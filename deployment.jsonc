@@ -1,7 +1,7 @@
 {
   // Cloudflare account that owns every Worker and provisioned resource.
   // Find it: https://developers.cloudflare.com/fundamentals/account/find-account-and-zone-ids/
-  "accountId": "<CLOUDFLARE_ACCOUNT_ID>",
+  "accountId": "b157b3849ca30a481cae4bc5d9bc05ff",
 
   // The deployment's public origin, used for PUBLIC_BASE_URL and to scope Context data.
   // null derives it from workers.router.route.customDomain.
@@ -16,24 +16,26 @@
     // Owns the public URL and serves the frontend. Proxies /api and /blueprint-screenshot to the
     // Workshop, and /gatekeeper/<name> to the matching Gatekeeper.
     "router": {
-      "name": "<ROUTER_WORKER_NAME>",
+      "name": "peer-point-os",
 
       // Production: use a hostname in an active Cloudflare zone. Wrangler creates DNS and TLS.
       // Evaluation: replace this with "route": { "workersDev": true } and set publicBaseUrl above.
       // https://developers.cloudflare.com/workers/configuration/routing/custom-domains/
-      "route": { "customDomain": "os.example.com" }
+      "route": { "customDomain": "os.cf.prompt2prod.dev" },
     },
 
     // The Workshop backend. No public route: the router reaches it over a service binding.
-    "workshop": { "name": "<WORKSHOP_WORKER_NAME>" },
-    "context": { "name": "<CONTEXT_WORKER_NAME>" },
+    "workshop": { "name": "peer-point-os-backend" },
+    "context": { "name": "peer-point-os-context" },
 
     // The Scheduler Gatekeeper, which gives agents scheduled and recurring work. Ambient like
     // the Context Gatekeeper
-    "scheduler": { "name": "<SCHEDULER_WORKER_NAME>" },
+    "scheduler": { "name": "peer-point-os-scheduler" },
+    "github": { "name": "peer-point-os-github" },
+    "mcpPortal": { "name": "peer-point-os-mcp-portal" },
 
-    "customGatekeeper": { "name": "<CUSTOM_GATEKEEPER_WORKER_NAME>" },
-    "errorReporter": { "name": "<ERROR_REPORTER_WORKER_NAME>" }
+    "customGatekeeper": { "name": "peer-point-os-custom" },
+    "errorReporter": { "name": "peer-point-os-errors" },
   },
 
   // This starter deploys Cloudflare Access mode. Cloudflare OS also supports built-in password
@@ -44,7 +46,7 @@
   "access": {
     "issuer": "https://<TEAM_NAME>.cloudflareaccess.com",
     "audience": "<ACCESS_AUDIENCE>",
-    "admins": ["<ADMIN_EMAIL>"]
+    "admins": ["<ADMIN_EMAIL>"],
   },
 
   // Model catalog served through Cloudflare AI Gateway. Enabled by default: the Workshop reaches
@@ -54,18 +56,19 @@
   "aiGateway": {
     "enabled": true,
 
-    // Your account's AI Gateway. "default" is the one Cloudflare creates for the account.
-    // Migrating from the hosted deploy? Use the gateway that flow created: "<instance>-ai"
-    // (e.g. "cloudflareos-ai"), named after your instance. See docs/migrate-from-hosted.md.
-    "name": "default",
-
-    // null reuses the top-level accountId. Set only if the gateway lives in another account --
-    // that requires CF_AI_GATEWAY_API_TOKEN, since the binding cannot reach across accounts.
+    "name": "peer-point-os",
     "accountId": null,
-
-    // "cloudflare" is Workers AI, which needs no key of your own. anthropic/openai need keys
-    // stored on the gateway; "google" additionally requires CF_AI_GATEWAY_API_TOKEN.
-    "providers": ["cloudflare"]
+    "providers": ["cloudflare"],
+    "models": [
+      "@cf/zai-org/glm-5.3",
+      "@cf/zai-org/glm-5.3-flash",
+      "@cf/zai-org/glm-5.2",
+      "@cf/moonshotai/kimi-k2.6",
+      "@cf/moonshotai/kimi-k2.7-code",
+      "@cf/deepseek-ai/deepseek-v4-flash-0731",
+      "@cf/deepseek-ai/deepseek-v4-pro-0813",
+    ],
+    "quickModel": "@cf/zai-org/glm-5.3-flash",
   },
 
   "context": {
@@ -75,7 +78,7 @@
 
     // null: Wrangler provisions and remembers a KV namespace on first deploy.
     // string: bind an existing namespace by ID.
-    "kvNamespaceId": null
+    "kvNamespaceId": null,
 
     // Optional Git-compatible storage for Context collections. To enable it, add a comma after
     // kvNamespaceId and uncomment this object. Requires Artifacts account access.
@@ -86,11 +89,17 @@
     // }
   },
 
+  "github": { "clientId": "<GITHUB_CLIENT_ID>" },
+  "mcpPortal": {
+    "portalUrl": "<MCP_PORTAL_URL>",
+    "hiddenServerIds": [],
+  },
+
   // Displayed to agents when the example custom integration is enabled in /admin.
   // Reference: docs/customization.md#custom-gatekeepers
   "customGatekeeper": {
     "name": "<ORGANIZATION_DISPLAY_NAME>",
-    "message": "<ORGANIZATION_GUIDANCE>"
+    "message": "<ORGANIZATION_GUIDANCE>",
   },
 
   // Explicit backend issue reports go to a private Worker that emits structured console errors.
@@ -99,7 +108,7 @@
   "errorReporting": {
     "enabled": true,
     "environment": "production",
-    "release": null
+    "release": null,
   },
 
   // null values use Wrangler automatic provisioning. Set IDs/names to reuse owned resources.
@@ -107,7 +116,7 @@
   "resources": {
     "blueprintsKvNamespaceId": null,
     "avatarsKvNamespaceId": null,
-    "blueprintContentBucket": null
+    "blueprintContentBucket": null,
   },
 
   // Structured custom logs stay enabled. Invocation logs and traces are separate volume controls.
@@ -116,6 +125,6 @@
     "enabled": true,
     "headSamplingRate": 1,
     "logs": { "invocationLogs": false },
-    "traces": { "enabled": false, "headSamplingRate": 0.1 }
-  }
+    "traces": { "enabled": false, "headSamplingRate": 0.1 },
+  },
 }

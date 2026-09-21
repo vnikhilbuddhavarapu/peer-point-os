@@ -4,42 +4,59 @@
   "workers": {
     "router": {
       "name": "peer-point-test",
-      "route": { "customDomain": "peer-point.example.com" }
+      "route": { "customDomain": "peer-point.example.com" },
     },
     "workshop": { "name": "peer-point-test-backend" },
     "context": { "name": "peer-point-test-context" },
     "scheduler": { "name": "peer-point-test-scheduler" },
-    "customGatekeeper": { "name": "peer-point-test-custom" }
+    "github": { "name": "peer-point-test-github" },
+    "mcpPortal": { "name": "peer-point-test-mcp-portal" },
+    "customGatekeeper": { "name": "peer-point-test-custom" },
   },
   "access": {
     "issuer": "https://peer-point.cloudflareaccess.com",
     "audience": "test-access-audience",
-    "admins": ["admin@example.com"]
+    "admins": ["admin@example.com"],
   },
   "aiGateway": {
     "enabled": true,
     "name": "default",
     "accountId": null,
-    "providers": ["cloudflare"]
+    "providers": ["cloudflare"],
+    "models": [
+      "@cf/zai-org/glm-5.3",
+      "@cf/zai-org/glm-5.3-flash",
+      "@cf/zai-org/glm-5.2",
+      "@cf/moonshotai/kimi-k2.6",
+      "@cf/moonshotai/kimi-k2.7-code",
+      "@cf/deepseek-ai/deepseek-v4-flash-0731",
+      "@cf/deepseek-ai/deepseek-v4-pro-0813",
+    ],
+    "quickModel": "@cf/zai-org/glm-5.3-flash",
   },
   "context": {
     "sharingDomain": null,
-    "kvNamespaceId": null
+    "kvNamespaceId": null,
+  },
+  "github": { "clientId": "test-github-client-id" },
+  "mcpPortal": {
+    "portalUrl": "https://portal.example.com/mcp",
+    "hiddenServerIds": ["hidden-test-server"],
   },
   "customGatekeeper": {
     "name": "Peer Point Test",
-    "message": "Test deployment configuration."
+    "message": "Test deployment configuration.",
   },
   "errorReporting": { "enabled": false },
   "resources": {
     "blueprintsKvNamespaceId": null,
     "avatarsKvNamespaceId": null,
-    "blueprintContentBucket": null
+    "blueprintContentBucket": null,
   },
   "observability": {
     "enabled": true,
     "headSamplingRate": 1,
     "logs": { "invocationLogs": false },
-    "traces": { "enabled": false, "headSamplingRate": 0.1 }
-  }
+    "traces": { "enabled": false, "headSamplingRate": 0.1 },
+  },
 }

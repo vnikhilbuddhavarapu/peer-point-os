@@ -13,12 +13,13 @@ import type {
   WranglerConfig,
 } from "../cloudflare-os/scripts/release/manifest-lib.ts";
 
-/** A model provider the Workshop can serve through AI Gateway with deployment-managed keys. */
-export type AiGatewayProvider = "anthropic" | "openai" | "google" | "cloudflare";
+/** The only model provider Peer Point serves through AI Gateway. */
+export type AiGatewayProvider = "cloudflare";
 
 /** Every provider {@link AiGatewayProvider} allows, for validation and for error messages. */
-export const AI_GATEWAY_PROVIDERS: readonly AiGatewayProvider[] =
-  ["anthropic", "openai", "google", "cloudflare"];
+export const AI_GATEWAY_PROVIDERS: readonly AiGatewayProvider[] = [
+  "cloudflare",
+];
 
 /**
  * The public address of the router Worker. Exactly one field is set; `validateConfig` enforces
@@ -44,11 +45,8 @@ export interface AccessConfig {
 /**
  * Deployment-managed model catalog, served through Cloudflare AI Gateway.
  *
- * Transport is derived rather than configured: the Workshop reaches the gateway over its
- * `WORKERS_AI` binding, which is pre-authenticated inside the Worker's own account. Only a gateway
- * in a *different* account, or the `google` provider, needs `CF_AI_GATEWAY_API_TOKEN` -- see
- * `AiGatewayConfig` in cloudflare-os/packages/workshop-backend/src/ai-gateway.ts, whose constructor
- * throws this script mirrors.
+ * The Workshop reaches the gateway over its pre-authenticated in-account `WORKERS_AI` binding.
+ * Peer Point does not support a cross-account or API-token transport.
  */
 export interface AiGatewayConfigInput {
   /** Whether the Workshop advertises a deployment-managed catalog at all. */
@@ -57,8 +55,12 @@ export interface AiGatewayConfigInput {
   name?: string;
   /** Account owning the gateway. `null` reuses the deployment's own `accountId`. */
   accountId?: string | null;
-  /** Providers to advertise. Must be non-empty when enabled. */
+  /** Providers to advertise. Peer Point requires exactly `["cloudflare"]`. */
   providers?: AiGatewayProvider[];
+  /** The seven Workers AI model IDs advertised by this deployment. */
+  models: string[];
+  /** The low-latency model, which must be one of `models`. */
+  quickModel: string;
   /**
    * No longer configurable: Workers AI rides the same gateway route as every other provider.
    * Declared only so `validateConfig` can reject a leftover key loudly -- silently ignoring one
@@ -111,6 +113,8 @@ export interface DeploymentConfig {
     workshop: { name: string };
     context: { name: string };
     scheduler: { name: string };
+    github: { name: string };
+    mcpPortal: { name: string };
     customGatekeeper: { name: string };
     /** Only required when `errorReporting.enabled`. */
     errorReporter?: { name: string };
@@ -118,10 +122,18 @@ export interface DeploymentConfig {
   access: AccessConfig;
   aiGateway: AiGatewayConfigInput;
   context: ContextConfig;
+  /** GitHub OAuth application configuration. */
+  github: { clientId: string };
+  /** Cloudflare MCP Server Portal configuration. */
+  mcpPortal: { portalUrl: string; hiddenServerIds?: string[] };
   /** Display text the example custom Gatekeeper serves to agents. */
   customGatekeeper: { name: string; message: string };
   /** Private explicit-issue destination. */
-  errorReporting: { enabled: boolean; environment?: string; release?: string | null };
+  errorReporting: {
+    enabled: boolean;
+    environment?: string;
+    release?: string | null;
+  };
   /** Workshop KV/R2. `null` requests Wrangler automatic provisioning. */
   resources: {
     blueprintsKvNamespaceId: string | null;
@@ -151,29 +163,30 @@ export interface ProdObservabilityConfig extends ObservabilityConfig {
  *
  * `assets` is *not* redeclared -- upstream's is already the shape written here.
  */
-export type ProdWranglerConfig =
-  Omit<WranglerConfig, "observability" | "artifacts" | "kv_namespaces" | "r2_buckets">
-  & {
-    /** KV bindings. `id` absent requests Wrangler automatic provisioning. */
-    kv_namespaces?: (BindingDecl & { id?: string })[];
-    /** R2 bindings. `bucket_name` absent requests Wrangler automatic provisioning. */
-    r2_buckets?: (BindingDecl & { bucket_name?: string })[];
-    /** The deployment's account, pinned so a stray `CLOUDFLARE_ACCOUNT_ID` cannot redirect it. */
-    account_id?: string;
-    /** Whether the Worker answers on the account's workers.dev subdomain. */
-    workers_dev?: boolean;
-    /** Custom-domain routes. Wrangler creates DNS and TLS for each. */
-    routes?: { pattern: string; custom_domain: boolean }[];
-    /** Turned off on every Worker: a preview URL is an unauthenticated path around Access. */
-    preview_urls?: boolean;
-    observability?: ProdObservabilityConfig;
-    /** Workers AI. Both the AI Gateway transport and what webFetch's `toMarkdown()` runs on. */
-    ai?: BindingDecl;
-    /** Secrets wrangler refuses to deploy without. Emitted only when one is genuinely needed. */
-    secrets?: { required: string[] };
-    /** Artifacts namespaces. An array, unlike upstream's single-binding declaration. */
-    artifacts?: { binding: string; namespace: string }[];
-  };
+export type ProdWranglerConfig = Omit<
+  WranglerConfig,
+  "observability" | "artifacts" | "kv_namespaces" | "r2_buckets"
+> & {
+  /** KV bindings. `id` absent requests Wrangler automatic provisioning. */
+  kv_namespaces?: (BindingDecl & { id?: string })[];
+  /** R2 bindings. `bucket_name` absent requests Wrangler automatic provisioning. */
+  r2_buckets?: (BindingDecl & { bucket_name?: string })[];
+  /** The deployment's account, pinned so a stray `CLOUDFLARE_ACCOUNT_ID` cannot redirect it. */
+  account_id?: string;
+  /** Whether the Worker answers on the account's workers.dev subdomain. */
+  workers_dev?: boolean;
+  /** Custom-domain routes. Wrangler creates DNS and TLS for each. */
+  routes?: { pattern: string; custom_domain: boolean }[];
+  /** Turned off on every Worker: a preview URL is an unauthenticated path around Access. */
+  preview_urls?: boolean;
+  observability?: ProdObservabilityConfig;
+  /** Workers AI. Both the AI Gateway transport and what webFetch's `toMarkdown()` runs on. */
+  ai?: BindingDecl;
+  /** Secrets wrangler refuses to deploy without. Emitted only when one is genuinely needed. */
+  secrets?: { required: string[] };
+  /** Artifacts namespaces. An array, unlike upstream's single-binding declaration. */
+  artifacts?: { binding: string; namespace: string }[];
+};
 
 /** The generated configs, keyed as `deployment.jsonc` keys them. */
 export interface GeneratedConfigs {
@@ -181,6 +194,8 @@ export interface GeneratedConfigs {
   workshop: ProdWranglerConfig;
   context: ProdWranglerConfig;
   scheduler: ProdWranglerConfig;
+  github: ProdWranglerConfig;
+  mcpPortal: ProdWranglerConfig;
   customGatekeeper: ProdWranglerConfig;
   /** Absent when `errorReporting.enabled` is false. */
   errorReporter?: ProdWranglerConfig;
@@ -192,6 +207,8 @@ export interface BaseConfigs {
   workshop: ProdWranglerConfig;
   context: ProdWranglerConfig;
   scheduler: ProdWranglerConfig;
+  github: ProdWranglerConfig;
+  mcpPortal: ProdWranglerConfig;
   customGatekeeper: ProdWranglerConfig;
   errorReporter: ProdWranglerConfig;
 }
