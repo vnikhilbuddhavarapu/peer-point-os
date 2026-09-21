@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { parse, type ParseError } from "jsonc-parser";
-import { aiGatewayPlan, buildCommands, generateConfigs, validateConfig } from "./deploy.ts";
+import {
+  aiGatewayPlan,
+  buildCommands,
+  deploymentConfigPath,
+  generateConfigs,
+  validateConfig,
+} from "./deploy.ts";
 import type {
   BaseConfigs,
   DeploymentConfig,
@@ -97,6 +103,19 @@ function sharingDomain(generated: GeneratedConfigs): unknown {
   return generated.workshop.services!
     .find((service) => service.binding === "GATEKEEPER_CONTEXT")!.props!.sharingDomain;
 }
+
+test("selects the default or explicit deployment config path", () => {
+  assert.match(deploymentConfigPath([]), /peer-point-os\/deployment\.jsonc$/);
+  assert.match(
+    deploymentConfigPath(["--check", "--config", "scripts/deployment.test.jsonc"]),
+    /peer-point-os\/scripts\/deployment\.test\.jsonc$/,
+  );
+  assert.throws(() => deploymentConfigPath(["--config"]), /requires a path/i);
+  assert.throws(
+    () => deploymentConfigPath(["--config", "a.jsonc", "--config", "b.jsonc"]),
+    /at most once/i,
+  );
+});
 
 test("rejects deployment placeholders", () => {
   assert.throws(

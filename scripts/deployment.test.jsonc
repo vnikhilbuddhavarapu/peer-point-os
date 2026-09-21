@@ -1,0 +1,45 @@
+{
+  "accountId": "0123456789abcdef0123456789abcdef",
+  "publicBaseUrl": null,
+  "workers": {
+    "router": {
+      "name": "peer-point-test",
+      "route": { "customDomain": "peer-point.example.com" }
+    },
+    "workshop": { "name": "peer-point-test-backend" },
+    "context": { "name": "peer-point-test-context" },
+    "scheduler": { "name": "peer-point-test-scheduler" },
+    "customGatekeeper": { "name": "peer-point-test-custom" }
+  },
+  "access": {
+    "issuer": "https://peer-point.cloudflareaccess.com",
+    "audience": "test-access-audience",
+    "admins": ["admin@example.com"]
+  },
+  "aiGateway": {
+    "enabled": true,
+    "name": "default",
+    "accountId": null,
+    "providers": ["cloudflare"]
+  },
+  "context": {
+    "sharingDomain": null,
+    "kvNamespaceId": null
+  },
+  "customGatekeeper": {
+    "name": "Peer Point Test",
+    "message": "Test deployment configuration."
+  },
+  "errorReporting": { "enabled": false },
+  "resources": {
+    "blueprintsKvNamespaceId": null,
+    "avatarsKvNamespaceId": null,
+    "blueprintContentBucket": null
+  },
+  "observability": {
+    "enabled": true,
+    "headSamplingRate": 1,
+    "logs": { "invocationLogs": false },
+    "traces": { "enabled": false, "headSamplingRate": 0.1 }
+  }
+}
